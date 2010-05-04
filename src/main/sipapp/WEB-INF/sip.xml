@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sip-app>
+
+
+	<app-name>JM First Sip Servlet</app-name>
+	<display-name>User Spy</display-name>
+	<description>Spy tool</description>
+	<distributable/>
+	
+	<servlet-selection>
+		<main-servlet>
+			JMSipServlet
+		</main-servlet>
+        </servlet-selection>
+
+	<servlet>
+		<servlet-name>JMSipServlet</servlet-name>
+		<display-name>JMSipServlet</display-name>
+		<description>JM SIP servlet</description>
+		<servlet-class>
+			net.sardynka.sip.userSpy.SimpleSipServlet
+		</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+
+
+	<context-param>
+	    <param-name>bye.delay</param-name>
+	    <param-value>120000</param-value>
+	</context-param>
+</sip-app>
+
+
+
