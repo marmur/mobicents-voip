@@ -18,7 +18,7 @@
 		<display-name>JMSipServlet</display-name>
 		<description>JM SIP servlet</description>
 		<servlet-class>
-			net.sardynka.sip.userSpy.SimpleSipServlet
+			net.sardynka.sip.userSpy.UserSpySipServlet
 		</servlet-class>
 		<load-on-startup>1</load-on-startup>
 	</servlet>

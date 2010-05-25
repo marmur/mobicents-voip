@@ -17,50 +17,32 @@
 <br />
 <br />
 <hr />
+<center>
 <table border="1" cellspacing="0" align="center" cellpadding="0">
-    s
-
 <%
 HashMap<String, UserInfo> users = (HashMap<String, UserInfo>)
 	getServletContext().getAttribute("registeredUsers");
-    if (users == null) {
+    if (users == null || users.size() == 0) {
         out.println("No users registered");
     }else{
         out.println(HTMLUserInfo.getHTMLHeader());
         for (UserInfo uI: users.values()){
-            out.println(HTMLUserInfo.userToHTML(uI));
+            out.println(HTMLUserInfo.userToHTML((RealUserInfo)uI));
         }
    }
 %>
 
 </table>
+</center>
 
 
 
 
 
 
-<form method="GET" action="call">
-
-	<p>To:</p>
-	<p><input type="text" name="to" size="20" value="sip:to@127.0.0.1:5050"></p>
-	<p>From:</p>
-	<p><input type="text" name="from" size="20" value="sip:from@127.0.0.1:5060"></p>
-	<p><input type="submit" value="Call" name="B1"><input type="reset" value="Reset" name="B2"></p>
-</form>
-<p>&nbsp;</p>
 <hr/>
-<a>Debug</a>
-<%
-SipApplicationSession appSession = 
-        	((ConvergedHttpSession)request.getSession()).getApplicationSession();
-out.println("<br/>appSession.setFromSipServletUA1=" + appSession.getAttribute("setFromSipServletUA1"));
-out.println("<br/>appSession.setFromSipServletUA2=" + appSession.getAttribute("setFromSipServletUA2"));
-out.println("<br/>appSession.setFromHttpServlet=" + appSession.getAttribute("setFromHttpServlet"));
-out.println("<br/>JSESSIONID=" + request.getSession().getId());
-out.println("<br/>APPSESSIONID=" + appSession.getId());
-out.println("<br/>Designed by Mr. Marmur  @ Mrowek");
-%>
-
+<center>
+Designed by Mr. Marmur  @ Mrowek
+</center>
 </body>
 </html>

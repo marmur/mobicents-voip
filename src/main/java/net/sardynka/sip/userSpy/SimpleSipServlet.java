@@ -6,17 +6,18 @@
 package net.sardynka.sip.userSpy;
 
 import java.io.IOException;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Iterator;
+import javax.annotation.Resource;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.sip.Address;
+import javax.servlet.sip.SipApplicationSession;
 import javax.servlet.sip.SipErrorEvent;
 import javax.servlet.sip.SipErrorListener;
+import javax.servlet.sip.SipFactory;
 import javax.servlet.sip.SipServlet;
 import javax.servlet.sip.SipServletRequest;
 import javax.servlet.sip.SipServletResponse;
+import net.sardynka.sip.userSpy.dataStructures.RealUserInfo;
 import net.sardynka.sip.userSpy.dataStructures.UserInfo;
 
 import org.apache.commons.logging.LogFactory;
@@ -32,6 +33,9 @@ public class SimpleSipServlet extends SipServlet implements SipErrorListener {
     
         private static final String CONTACT_HEADER = "Contact";
 
+        @Resource
+        protected SipFactory sipFactory;
+
 
 	@Override
 	public void init(ServletConfig servletConfig) throws ServletException {
@@ -43,56 +47,88 @@ public class SimpleSipServlet extends SipServlet implements SipErrorListener {
 
 
 
-        private boolean addUserToMap(UserInfo userInfo){
-            HashMap<String, UserInfo> users = (HashMap<String, UserInfo>) getServletContext().getAttribute("registeredUsers");
+        private boolean addUserToMap(RealUserInfo userInfo){
+            HashMap<String, RealUserInfo> users = (HashMap<String, RealUserInfo>) getServletContext().getAttribute("registeredUsers");
 
             if (users.containsKey(userInfo.getUID())){
+                logger.info("User ("+userInfo.getUID() +") already exists");
                 return false;
             }else{
+                logger.info("Adding new user ("+userInfo.getUID() +")");
                 users.put(userInfo.getUID(), userInfo);
                 return true;
             }
         }
 
+        private void removeUserFromMap (String uid){
+            HashMap<String, RealUserInfo> users = (HashMap<String, RealUserInfo>) getServletContext().getAttribute("registeredUsers");
+            users.remove(uid.toLowerCase());
+        }
 
+        protected UserInfo getUserInfo(String uid){
+            HashMap<String, RealUserInfo> users = (HashMap<String, RealUserInfo>) getServletContext().getAttribute("registeredUsers");
+            return users.get(uid.toLowerCase());
+        }
 
-        @Override
-	protected void doRegister(SipServletRequest request) throws ServletException, IOException {
-		logger.info("New REGISTER request from " + request.getSubscriberURI());
-
-
-                //Jaks si? klient przedstawi?: sip:Marmur@localhost:5061
-                //request.getSubscriberURI()
-                UserInfo userInfo = new UserInfo( request.getSubscriberURI().toString(), request);
-
-
-
+	protected SipServletResponse register(SipServletRequest request) throws ServletException, IOException {
+		logger.info("New REGISTER ("+ request.getAddressHeader(CONTACT_HEADER).getExpires() + ")request from " + request.getSubscriberURI());
                 SipServletResponse responese = null;
-                if (addUserToMap(userInfo)){
-                    String via = request.getHeader("Via");
-                    userInfo.setIncomeIP(UserInfo.getIncomeIP(via));
-                    userInfo.setIncomePort(UserInfo.getIncomePort(via));
-
+                if (request.getAddressHeader(CONTACT_HEADER).getExpires()==0){
+                    removeUserFromMap(request.getSubscriberURI().toString());
                     responese = request.createResponse(SipServletResponse.SC_OK);
+                } else {
+                    RealUserInfo userInfo = new RealUserInfo( request.getSubscriberURI().toString(), request);
+                    if (addUserToMap(userInfo)){
+                        String via = request.getHeader("Via");
+                        userInfo.setIncomeIP(RealUserInfo.unmarshalIncomeIP(via));
+                        userInfo.setIncomePort(RealUserInfo.unmarshalIncomePort(via));
 
-                }else{
-                    responese = request.createResponse(SipServletResponse.SC_DECLINE);
+                        responese = request.createResponse(SipServletResponse.SC_OK);
+
+                    }else{
+                        responese = request.createResponse(SipServletResponse.SC_DECLINE);
+                    }
                 }
-
-
-                responese.send();
+                return responese;
         }
 
         @Override
-        protected void doInvite(SipServletRequest req) throws javax.servlet.ServletException, java.io.IOException{
-//            SipServletResponse response = req.createResponse(SipServletResponse.SC_BAD_EVENT);
-//            response.send();
+        protected void doRegister(SipServletRequest request) throws ServletException, IOException {
+            register(request).send();
+        }
 
+        @Override
+        protected void doInvite(SipServletRequest req) throws ServletException, IOException{
               req.getProxy().proxyTo(req.getRequestURI());
         }
 
 
-       
+
+        protected SipServletRequest message(SipServletRequest req) throws IOException{
+            logger.info("Received message for: " + req.getTo().getURI().toString());
+            UserInfo userInfo = getUserInfo(req.getTo().getURI().toString());
+            if (userInfo == null){
+                logger.info("No suche user in DB");
+                req.createResponse(SipServletResponse.SC_GONE).send();
+                return null;
+            }else{
+                logger.info("Sending message");
+                req.createResponse(SipServletResponse.SC_OK).send();
+
+                SipApplicationSession sas = sipFactory.createApplicationSession();
+                SipServletRequest request = sipFactory.createRequest(sas, "MESSAGE", req.getFrom().getURI(), userInfo.getURI());
+                request.setContent(req.getContent(), req.getContentType());
+                return request;
+            }
+
+
+        }
+
+        @Override
+        protected void doMessage(SipServletRequest req) throws ServletException,IOException{
+            SipServletRequest request = message(req);
+            if (request != null) request.send();
+        }
 
 
 
